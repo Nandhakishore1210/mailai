@@ -1,0 +1,12 @@
+# Normalise line endings so the repo is identical on Windows, macOS and Linux.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.mp4 binary
+*.webm binary
+*.ico binary
+
+# Keep generated lockfiles out of diffs.
+package-lock.json linguist-generated=true

@@ -1,0 +1,47 @@
+# ── secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# Playwright's injected session cookie is a live credential.
+**/.auth/
+e2e/.auth/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# ── Node / Next.js ───────────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-error.log*
+.turbo/
+
+# ── test artefacts ───────────────────────────────────────────────────────────
+test-results/
+playwright-report/
+blob-report/
+coverage/
+.nyc_output/
+
+# ── local data ───────────────────────────────────────────────────────────────
+*.sqlite
+*.sqlite3
+pgdata/
+
+# ── editors / OS ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# build info
+*.tsbuildinfo
