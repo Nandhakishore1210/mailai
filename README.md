@@ -128,51 +128,89 @@ deployment. Setup steps are documented at the top of
 
 ### Prerequisites
 
-- Python 3.12+
+- **Python 3.12** specifically. 3.13+ has no prebuilt wheels for some
+  dependencies yet and will try to compile them from source.
 - Node.js 20+
-- PostgreSQL 16 (or use Docker)
+- Docker, for Postgres
 - A Google Cloud project with the Gmail API enabled
-- An Anthropic API key
+- An Anthropic API key with credit on it
 
 ### 1. Google Cloud / Gmail OAuth
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials.
-2. Create an **OAuth 2.0 Client ID** (Web application type).
-3. Add your redirect URI: `http://localhost:8000/auth/google/callback` (local) or your production domain.
-4. Enable the **Gmail API** in the project.
-5. Copy your Client ID and Client Secret.
+1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services
+   → Library → enable **Gmail API**.
+2. APIs & Services → Credentials → **Create OAuth 2.0 Client ID**, type
+   *Web application*.
+3. Under *Authorised redirect URIs* add
+   `http://localhost:8000/auth/google/callback`.
+4. Copy the Client ID and Client Secret.
+5. OAuth consent screen → add your Google account under **Test users**.
 
-### 2. Environment variables
+That last step is not optional. Gmail's read and modify scopes are *restricted*,
+so Google blocks any account that is not a listed test user until the app passes
+verification. See [Sign-in options](#sign-in-options) for the alternative that
+works for any mailbox.
+
+### 2. Database
 
 ```bash
-cp .env.example .env
+docker run -d --name mailai-db \
+  -e POSTGRES_DB=mailai -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=password \
+  -p 5435:5432 postgres:16-alpine
 ```
 
-Fill in `.env`:
+Port 5435 rather than the default 5432, so this does not collide with any
+Postgres already running on the machine.
 
-```
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/mailai
-SECRET_KEY=<random 32+ char string>
-GOOGLE_CLIENT_ID=<from Google Console>
-GOOGLE_CLIENT_SECRET=<from Google Console>
+### 3. Environment variables
+
+Create `backend/.env` with the following. Never commit it; `.env` is
+git-ignored.
+
+```bash
+# Database (matches the docker run above)
+DATABASE_URL=postgresql+psycopg2://postgres:password@127.0.0.1:5435/mailai
+
+# Generate these two yourself:
+#   python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY=
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+TOKEN_ENCRYPTION_KEY=
+
+# From step 1
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
-ANTHROPIC_API_KEY=<your Anthropic key>
-TOKEN_ENCRYPTION_KEY=<generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
+
+# From console.anthropic.com → API Keys
+ANTHROPIC_API_KEY=
+
 FRONTEND_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# Optional: real Gmail push instead of server-side polling.
+# Leave empty to use polling. Setup: backend/app/realtime/gmail_push.py
+GMAIL_PUBSUB_TOPIC=
+#   python -c "import secrets; print(secrets.token_urlsafe(24))"
+GMAIL_PUSH_TOKEN=
 ```
 
-### 3. Backend
+The frontend reads `NEXT_PUBLIC_API_URL`, so either put the same value in
+`frontend/.env.local` or export it before `npm run dev`.
+
+### 4. Backend
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+py -3.12 -m venv .venv          # macOS/Linux: python3.12 -m venv .venv
+.venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 4. Frontend
+Tables are created on startup, so there is no migration step.
+
+### 5. Frontend
 
 ```bash
 cd frontend
@@ -182,14 +220,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### 5. Docker (alternative)
+### 6. Docker (alternative)
 
 ```bash
-cp .env.example .env  # fill in values
 docker-compose up --build
 ```
 
----
+Reads the same variables; put them in a `.env` at the repository root.
 
 ## Running Tests
 

@@ -1,7 +1,6 @@
 # ── secrets ──────────────────────────────────────────────────────────────────
 .env
 .env.*
-!.env.example
 
 # Playwright's injected session cookie is a live credential.
 **/.auth/
