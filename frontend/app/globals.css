@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+}
+
+/* Rendered email HTML keeps a light card in dark mode so inline styles stay legible */
+.email-body {
+  @apply text-gray-800 text-sm leading-relaxed;
+}
+.email-body a { @apply text-brand-600 underline; }
+.email-body img { max-width: 100%; height: auto; }
+.email-body blockquote { @apply border-l-2 border-gray-200 pl-3 text-gray-500; }
