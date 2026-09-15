@@ -203,3 +203,34 @@ describe("read state", () => {
     expect(useMailStore.getState().boxes.inbox.find((e) => e.id === "m1")?.is_unread).toBe(true);
   });
 });
+
+describe("the list stays where the user is", () => {
+  it("opening a Sent message keeps the list on Sent", async () => {
+    // Regression: the list used to be derived from where the message lived, so
+    // anything present in two mailboxes (mail sent to yourself) sent the user
+    // back to the Inbox the moment they opened it.
+    useUIStore.getState().navigate("sent");
+    expect(useUIStore.getState().lastBox).toBe("sent");
+
+    api.detail.mockResolvedValue(detail("m1"));
+    await executeAction({ type: "OPEN_EMAIL", emailId: "m1" });
+
+    expect(useUIStore.getState().currentView).toBe("detail");
+    expect(useUIStore.getState().lastBox).toBe("sent");
+  });
+
+  it("composing does not move the list either", async () => {
+    useUIStore.getState().navigate("spam");
+    await executeAction({ type: "SET_COMPOSE", subject: "Draft" });
+
+    expect(useUIStore.getState().currentView).toBe("compose");
+    expect(useUIStore.getState().lastBox).toBe("spam");
+  });
+
+  it("lastBox follows every mailbox the user visits", () => {
+    for (const box of ["inbox", "sent", "spam", "trash"] as const) {
+      useUIStore.getState().navigate(box);
+      expect(useUIStore.getState().lastBox).toBe(box);
+    }
+  });
+});

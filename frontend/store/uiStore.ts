@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { CurrentView, ComposeState, PendingAction } from "@/lib/types";
+import { CurrentView, ComposeState, PendingAction, MailBox, isMailBox } from "@/lib/types";
 
 interface Notification {
   id: string;
@@ -11,6 +11,11 @@ type Theme = "light" | "dark";
 
 interface UIStore {
   currentView: CurrentView;
+  /**
+   * The mailbox the user was last browsing. Detail and compose are not
+   * mailboxes, so the list needs to know where to stay while they are open.
+   */
+  lastBox: MailBox;
   selectedEmailId: string | undefined;
   compose: ComposeState;
   pendingConfirmation: "SEND_EMAIL" | null;
@@ -45,6 +50,7 @@ function applyTheme(theme: Theme) {
 
 export const useUIStore = create<UIStore>((set, get) => ({
   currentView: "inbox",
+  lastBox: "inbox",
   selectedEmailId: undefined,
   compose: defaultCompose,
   pendingConfirmation: null,
@@ -52,7 +58,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   notifications: [],
   theme: "light",
 
-  navigate: (view) => set({ currentView: view, selectedEmailId: undefined }),
+  navigate: (view) =>
+    set(isMailBox(view)
+      ? { currentView: view, lastBox: view, selectedEmailId: undefined }
+      : { currentView: view, selectedEmailId: undefined }),
   openEmail: (id) => set({ currentView: "detail", selectedEmailId: id }),
   setCompose: (patch) => set((s) => ({ compose: { ...s.compose, ...patch } })),
   resetCompose: () => set({ compose: defaultCompose }),

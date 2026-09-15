@@ -96,3 +96,17 @@ test("dark mode toggles and survives a reload", async ({ page }) => {
   await page.getByTestId("theme-toggle").click();
   await expect(html).not.toHaveClass(/dark/);
 });
+
+test("opening a Sent message keeps the list on Sent", async ({ page }) => {
+  // Regression: the list was derived from where the message lived, so mail
+  // present in both Inbox and Sent (anything sent to yourself) bounced the
+  // user back to the Inbox the moment they opened it.
+  await gotoInbox(page);
+  await page.getByTestId("nav-sent").click();
+  await expect(page.getByTestId("list-title")).toHaveText(/sent/i);
+
+  await page.getByTestId("email-row").first().click();
+  await expect(page.getByTestId("email-detail")).toBeVisible();
+
+  await expect(page.getByTestId("list-title")).toHaveText(/sent/i);
+});

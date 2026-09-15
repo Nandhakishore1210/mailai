@@ -31,7 +31,7 @@ export default function InboxPage() {
     boxes, selectedEmail, thread, searchResults, loading, detailLoading,
     fetchBox, fetchDetail, prefetchDetail, markRead, restoreEmails, boxOf,
   } = useMailStore();
-  const { currentView, selectedEmailId, openEmail, navigate, setCompose } = useUIStore();
+  const { currentView, lastBox, selectedEmailId, openEmail, navigate, setCompose } = useUIStore();
 
   useEffect(() => {
     authApi.me().catch(() => router.replace("/login"));
@@ -73,10 +73,11 @@ export default function InboxPage() {
     });
   };
 
-  // Which mailbox the left list represents (detail/compose keep the last box via boxOf).
-  const listBox: MailBox = isMailBox(currentView)
-    ? currentView
-    : (selectedEmail && boxOf(selectedEmail.id)) || "inbox";
+  // The list shows the mailbox the user is browsing. While a message or the
+  // compose form is open the view is not a mailbox, so fall back to the last
+  // one they were in. Deriving this from the message instead would jump to
+  // Inbox for anything listed in two places, such as mail sent to yourself.
+  const listBox: MailBox = isMailBox(currentView) ? currentView : lastBox;
   const visibleEmails = searchResults ?? boxes[listBox];
   const showDetail = currentView === "detail" && selectedEmail;
   const selectedBox = selectedEmail ? boxOf(selectedEmail.id) : null;
