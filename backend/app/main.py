@@ -41,7 +41,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url],
+    allow_origins=[settings.frontend_url.rstrip("/")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -68,11 +68,22 @@ def get_current_user(
     return user, account
 
 
+# Locally the frontend and backend share "localhost", so a Lax cookie is sent.
+# Deployed they live on different sites (e.g. vercel.app and onrender.com) and
+# the browser only sends a cookie cross-site when it is SameSite=None; Secure.
+_CROSS_SITE = settings.frontend_url.startswith("https://")
+_COOKIE_OPTS = dict(
+    httponly=True,
+    secure=_CROSS_SITE,
+    samesite="none" if _CROSS_SITE else "lax",
+    path="/",
+)
+
+
 def _set_session_cookie(response: Response, user_id: str) -> None:
     response.set_cookie(
         "session_token", create_session_token(user_id),
-        httponly=True, secure=False, samesite="lax",
-        max_age=60 * 60 * 24 * 7,
+        max_age=60 * 60 * 24 * 7, **_COOKIE_OPTS,
     )
 
 
@@ -133,7 +144,8 @@ async def google_callback(code: str, state: str, db: Session = Depends(get_db)):
 
 @app.post("/auth/logout")
 def logout(response: Response):
-    response.delete_cookie("session_token")
+    # Must repeat the attributes used to set it, or the browser keeps the cookie.
+    response.delete_cookie("session_token", **_COOKIE_OPTS)
     return {"ok": True}
 
 
