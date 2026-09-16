@@ -305,9 +305,14 @@ async function runBulk(
   }
 
   const results = await Promise.allSettled(ids.map((id) => op(id)));
-  const failed = results.filter((r) => r.status === "rejected").length;
-  if (failed) {
-    useUIStore.getState().addNotification("error", `${failed} of ${ids.length} failed`);
+  const rejected = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+  if (rejected.length) {
+    // Prefer the server's explanation: "1 of 1 failed" tells the user nothing.
+    const detail = (rejected[0].reason as any)?.response?.data?.detail;
+    useUIStore.getState().addNotification(
+      "error",
+      typeof detail === "string" ? detail : `${rejected.length} of ${ids.length} failed`
+    );
   } else {
     useUIStore.getState().addNotification("success", `${successMessage} (${ids.length})`);
   }

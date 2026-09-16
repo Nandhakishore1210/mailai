@@ -22,7 +22,7 @@ from app.auth.sessions import encrypt_token, decrypt_token, create_session_token
 from app.mail.gmail import GmailMailService
 from app.mail.imap import verify_login, detect_hosts, MailAuthError
 from app.mail.registry import get_mail_service, forget as forget_mail_service
-from app.mail.service import MailFilters, MAILBOXES
+from app.mail.service import MailFilters, MAILBOXES, MailPermissionError
 from app.mail.cache import mailbox_cache
 from app.realtime.watcher import watchers
 from app.realtime.gmail_push import register_watch, parse_notification, push_enabled
@@ -378,8 +378,14 @@ async def _message_op(op: str, message_id: str, account) -> dict:
     svc = await get_mail_service(account)
     try:
         await getattr(svc, op)(message_id)
+    except MailPermissionError as exc:
+        # The provider refused on scope grounds; 404 would hide the real cause.
+        raise HTTPException(403, str(exc))
     except Exception as exc:
-        raise HTTPException(404, f"Could not {op.replace('_', ' ')}: {exc}")
+        status = getattr(getattr(exc, "resp", None), "status", None)
+        if status == 404:
+            raise HTTPException(404, "Message not found")
+        raise HTTPException(502, f"Mail provider error: {exc}")
     mailbox_cache.invalidate(account.id)
     return {"ok": True, "id": message_id, "op": op}
 
@@ -433,8 +439,11 @@ async def get_email(message_id: str, auth=Depends(get_current_user)):
     svc = await get_mail_service(account)
     try:
         detail = await svc.get_message(message_id)
-    except Exception:
-        raise HTTPException(404, "Message not found")
+    except Exception as exc:
+        status = getattr(getattr(exc, "resp", None), "status", None)
+        if status == 404:
+            raise HTTPException(404, "Message not found")
+        raise HTTPException(502, f"Mail provider error: {exc}")
     return asdict(detail)
 
 

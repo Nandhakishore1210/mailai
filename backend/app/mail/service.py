@@ -5,6 +5,10 @@ from typing import Optional
 MAILBOXES = ("inbox", "sent", "spam", "trash")
 
 
+class MailPermissionError(Exception):
+    """The provider refused because the granted scopes do not cover the action."""
+
+
 @dataclass
 class EmailSummary:
     id: str

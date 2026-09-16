@@ -5,7 +5,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
-from app.mail.service import MailService, EmailSummary, EmailDetail, MailFilters
+from googleapiclient.errors import HttpError
+
+from app.mail.service import MailService, EmailSummary, EmailDetail, MailFilters, MailPermissionError
 
 METADATA_HEADERS = ["Subject", "From", "Date"]
 BOX_LABELS = {"inbox": ["INBOX"], "sent": ["SENT"], "spam": ["SPAM"], "trash": ["TRASH"]}
@@ -235,9 +237,24 @@ class GmailMailService(MailService):
         await asyncio.to_thread(_restore)
 
     async def delete_forever(self, message_id: str) -> None:
-        await asyncio.to_thread(
-            lambda: self._service.users().messages().delete(userId="me", id=message_id).execute()
-        )
+        """
+        Gmail's messages.delete requires the full https://mail.google.com/ scope.
+        This app deliberately requests only readonly, send and modify, so the
+        call is refused. Surfaced as a permission error rather than a generic
+        failure so the UI can say something useful.
+        """
+        def _delete():
+            try:
+                self._service.users().messages().delete(userId="me", id=message_id).execute()
+            except HttpError as exc:
+                if exc.resp.status == 403:
+                    raise MailPermissionError(
+                        "Permanently deleting needs full Gmail access, which this app does not "
+                        "request. Move the message to the Bin instead, or empty the Bin in Gmail."
+                    ) from exc
+                raise
+
+        await asyncio.to_thread(_delete)
 
     def _set_read_sync(self, message_id: str, read: bool) -> None:
         body = {"removeLabelIds": ["UNREAD"]} if read else {"addLabelIds": ["UNREAD"]}
